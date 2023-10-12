@@ -859,3 +859,112 @@ class TraceAnnotator:
                     thickness=self.thickness,
                 )
         return scene
+
+
+class TriangleMarkerAnnotator:
+    """
+    A class for drawing triangles on an image using detections provided.
+    Attributes:
+        color (Union[Color, ColorPalette]): The color to draw the triangles,
+            can be a single color or a color palette
+        thickness (int): The thickness of the triangle lines, default is 2
+        text_color (Color): The color of the text on the triangles, default is white
+        text_scale (float): The scale of the text on the triangles, default is 0.5
+        text_thickness (int): The thickness of the text on the triangles,
+            default is 1
+        text_padding (int): The padding around the text on the triangles,
+            default is 10
+    """
+
+    def __init__(
+        self,
+        color: Union[Color, ColorPalette] = ColorPalette.default(),
+        thickness: int = 2,
+        position: Position = Position.TOP_CENTER,
+        triangle_marker_width: int = 20,
+        triangle_marker_height: int = 20,
+        triangle_marker_margin: int = 10,
+    ):
+        self.color: Union[Color, ColorPalette] = color
+        self.thickness: int = thickness
+        self.triangle_marker_margin: int = triangle_marker_margin
+        self.triangle_marker_height: int = triangle_marker_height
+        self.triangle_marker_width: int = triangle_marker_width
+        self.position = position
+
+    def annotate(
+        self,
+        scene: np.ndarray,
+        detections: Detections,
+    ) -> np.ndarray:
+        """
+        Draws triangles on the frame using the detections provided.
+        Args:
+            scene (np.ndarray): The image on which the triangles will be drawn
+            detections (Detections): The detections for which the
+                triangles will be drawn
+            labels (Optional[List[str]]): An optional list of labels
+                corresponding to each detection. If `labels` are not provided,
+                corresponding `class_id` will be used as label.
+            skip_label (bool): Is set to `True`, skips triangle label annotation.
+        Returns:
+            np.ndarray: The image with the triangles drawn on it
+        Example:
+            ```python
+            >>> import supervision as sv
+            >>> classes = ['triangle', ...]
+            >>> image = ...
+            >>> detections = sv.Detections(...)
+            >>> triangle_annotator = sv.TriangleAnnotator()
+            >>> labels = [
+            ...     f"{classes[class_id]} {confidence:0.2f}"
+            ...     for _, _, confidence, class_id, _
+            ...     in detections
+            ... ]
+            >>> annotated_frame = triangle_annotator.annotate(
+            ...     scene=image.copy(),
+            ...     detections=detections,
+            ...     labels=labels
+            ... )
+            ```
+        """
+        for i in range(len(detections)):
+            x, y = detections.get_anchor_coordinates(self.position)
+            class_id = (
+                detections.class_id[i] if detections.class_id is not None else None
+            )
+            idx = class_id if class_id is not None else i
+            color = (
+                self.color.by_idx(idx)
+                if isinstance(self.color, ColorPalette)
+                else self.color
+            )
+
+            triangle_vertices = [
+                (
+                    x - self.triangle_marker_width // 2,
+                    y - self.triangle_marker_height - self.triangle_marker_margin,
+                ),
+                (x, y - self.triangle_marker_margin),
+                (
+                    x + self.triangle_marker_width // 2,
+                    y - self.triangle_marker_height - self.triangle_marker_margin,
+                ),
+            ]
+
+            cv2.drawContours(
+                image=scene,
+                contours=[np.array(triangle_vertices, dtype=np.int32)],
+                contourIdx=0,
+                color=color.as_bgr(),
+                thickness=self.thickness,
+            )
+
+            cv2.drawContours(
+                image=scene,
+                contours=[np.array(triangle_vertices, dtype=np.int32)],
+                contourIdx=0,
+                color=color.as_bgr(),
+                thickness=-1,
+            )
+        return scene
